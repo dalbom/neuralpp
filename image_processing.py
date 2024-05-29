@@ -65,15 +65,12 @@ def add_noise(x, alpha_a, alpha_b):
 
 
 def apply_image_operations(image, parameters):
-    # Placeholder value for unused parameters
-    placeholder_value = float("inf")
-
     # Function to check if a parameter is valid
     def is_valid(param):
         if isinstance(param, (list, np.ndarray)):
-            return all(p != placeholder_value for p in param)
+            return all(p >= 0 for p in param)
         else:
-            return param != placeholder_value
+            return param >= 0
 
     # Unpack parameters
     alpha_wb = parameters[0]
@@ -117,7 +114,7 @@ def apply_image_operations(image, parameters):
 
     # Apply chromatic aberration if valid
     if is_valid(alpha_ch) and is_valid(alpha_cw):
-        image = chromatic_aberration(image, alpha_ch, alpha_cw)
+        image = chromatic_aberration(image, int(alpha_ch), int(alpha_cw))
 
     # Apply blurring if valid
     if is_valid(sigma):
@@ -130,6 +127,76 @@ def apply_image_operations(image, parameters):
         image = add_noise(image, alpha_a, alpha_b)
 
     return image
+
+
+def normalize_parameters(params):
+    normalized = []
+    ranges = {
+        "alpha_wb": (-1, 1),
+        "beta": (-0.5, 0.5),
+        "gamma": (0.5, 2),
+        "delta": (0.5, 1.5),
+        "lambda_gamma": (0.5, 2.5),
+        "q": (0, 1),
+        "alpha_ch": (-5, 5),
+        "alpha_cw": (-5, 5),
+        "sigma": (0, 3),
+        "alpha_a": (0, 0.1),
+        "alpha_b": (0, 0.1),
+    }
+
+    idx = 0
+    for key, (low, high) in ranges.items():
+        if key == "q":
+            for i in range(9):
+                if params[idx] >= 0:
+                    normalized.append((params[idx] - low) / (high - low))
+                else:
+                    normalized.append(-1)
+                idx += 1
+        else:
+            if params[idx] >= 0:
+                normalized.append((params[idx] - low) / (high - low))
+            else:
+                normalized.append(-1)
+            idx += 1
+
+    return normalized
+
+
+def denormalize_parameters(norm_params):
+    denormalized = []
+    ranges = {
+        "alpha_wb": (-1, 1),
+        "beta": (-0.5, 0.5),
+        "gamma": (0.5, 2),
+        "delta": (0.5, 1.5),
+        "lambda_gamma": (0.5, 2.5),
+        "q": (0, 1),
+        "alpha_ch": (-5, 5),
+        "alpha_cw": (-5, 5),
+        "sigma": (0, 3),
+        "alpha_a": (0, 0.1),
+        "alpha_b": (0, 0.1),
+    }
+
+    idx = 0
+    for key, (low, high) in ranges.items():
+        if key == "q":
+            for i in range(9):
+                if norm_params[idx] >= 0:
+                    denormalized.append(norm_params[idx] * (high - low) + low)
+                else:
+                    denormalized.append(-1)
+                idx += 1
+        else:
+            if norm_params[idx] >= 0:
+                denormalized.append(norm_params[idx] * (high - low) + low)
+            else:
+                denormalized.append(-1)
+            idx += 1
+
+    return denormalized
 
 
 def generate_random_parameters():
@@ -148,11 +215,11 @@ def generate_random_parameters():
     }
 
     # Randomly select a number of parameters to use
-    n = np.random.randint(1, len(parameters) + 1)
+    n = np.random.randint(1, 4)
     selected_keys = np.random.choice(list(parameters.keys()), n, replace=False)
 
     # Create a parameter list with default large values (e.g., float('inf'))
-    param_list = [float("inf")] * sum(
+    param_list = [float(-1)] * sum(
         len(v) if isinstance(v, np.ndarray) else 1 for v in parameters.values()
     )
     param_order = list(parameters.keys())

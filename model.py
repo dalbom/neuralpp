@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 import torchvision.models as models
 
@@ -7,7 +6,7 @@ class ResNetForImageProcessing(nn.Module):
     def __init__(self, output_size=19):
         super(ResNetForImageProcessing, self).__init__()
         # Load pre-trained ResNet model
-        self.resnet = models.resnet50(pretrained=True)
+        self.resnet = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1)
 
         # Modify the first convolutional layer to accept 4 input channels (RGB + mask)
         self.resnet.conv1 = nn.Conv2d(

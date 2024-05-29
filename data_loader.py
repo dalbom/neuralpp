@@ -5,7 +5,11 @@ from torch.utils.data import Dataset
 from skimage.io import imread
 import numpy as np
 import cv2
-from image_processing import generate_random_parameters, apply_image_operations
+from image_processing import (
+    generate_random_parameters,
+    apply_image_operations,
+    normalize_parameters,
+)
 
 
 class PersonDataset(Dataset):
@@ -61,17 +65,20 @@ class PersonDataset(Dataset):
         # cv2.imwrite("data_%04d_corrupted.png" % idx, corrupted_image)
 
         binary_mask3 = np.dstack([binary_mask] * 3)
-        cropped_image = np.multiply(cropped_image, 1 - binary_mask3) + np.multiply(
-            corrupted_image, binary_mask3
+        cropped_image = np.multiply(cropped_image, binary_mask3) + np.multiply(
+            corrupted_image, 1 - binary_mask3
         )
 
         # cv2.imwrite("data_%04d_combined.png" % idx, cropped_image)
 
         cropped_image = torch.from_numpy(cropped_image).permute(2, 0, 1).float() / 255.0
         binary_mask = torch.from_numpy(binary_mask).unsqueeze(0).float()
-        image_param = torch.tensor(image_param, dtype=torch.float32)
 
-        return cropped_image, binary_mask, image_param
+        # Normalize image_param
+        normalized_image_param = normalize_parameters(image_param)
+        image_param_tensor = torch.tensor(normalized_image_param, dtype=torch.float32)
+
+        return cropped_image, binary_mask, image_param_tensor
 
     def process_image(self, image, annotations):
         person_instances = self.get_valid_person_instances(annotations)
