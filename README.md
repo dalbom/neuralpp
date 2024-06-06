@@ -17,3 +17,4 @@ This repository implements neural postprocessing method. It applies a set of ran
 7. Chromatic aberration
 8. Blurring
 9. Noise
+10. JPEG artifact
