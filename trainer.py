@@ -47,13 +47,13 @@ is_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if is_cuda else "cpu")
 
 # Define your dataset
-dataset = PersonDataset("datasets/daytime.csv")
+dataset = PersonDataset("datasets/pedestrian.csv")
 
 # Create DataLoader
 data_loader = DataLoader(dataset, batch_size=32, shuffle=True)
 
 # Initialize the model
-model = ResNetForImageProcessing(output_size=19)
+model = ResNetForImageProcessing(output_size=20)
 
 if is_cuda:
     model = model.cuda()

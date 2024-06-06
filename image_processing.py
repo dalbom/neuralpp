@@ -1,6 +1,9 @@
+import cv2
 import numpy as np
 from skimage.color import rgb2hsv, hsv2rgb
-from scipy.ndimage import gaussian_filter
+from skimage.filters import gaussian
+
+# from scipy.ndimage import gaussian_filter
 
 
 # Define image operation functions
@@ -56,12 +59,28 @@ def chromatic_aberration(img, alpha_ch, alpha_cw):
 
 
 def apply_blur(img, sigma):
-    return gaussian_filter(img, sigma=sigma)
+    return gaussian(img, sigma=sigma, channel_axis=2)
 
 
 def add_noise(x, alpha_a, alpha_b):
     noise = np.random.normal(0, 1, x.shape)
     return np.clip(x + np.sqrt(alpha_a * x + alpha_b) * noise, 0, 1)
+
+
+def apply_jpeg_artifacts(image, quality):
+    # Ensure the image is in the correct format
+    if image.dtype != np.uint8:
+        image = (image * 255).astype(np.uint8)
+
+    # Apply JPEG compression and decompression
+    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
+    _, encimg = cv2.imencode(".jpg", image, encode_param)
+    decimg = cv2.imdecode(encimg, 1)
+
+    # Convert back to float format
+    decimg = decimg.astype(np.float32) / 255.0
+
+    return decimg
 
 
 def apply_image_operations(image, parameters):
@@ -84,6 +103,7 @@ def apply_image_operations(image, parameters):
     sigma = parameters[16]
     alpha_a = parameters[17]
     alpha_b = parameters[18]
+    jpeg_quality = parameters[19]
 
     # Apply white balance adjustment if valid
     if is_valid(alpha_wb):
@@ -126,6 +146,10 @@ def apply_image_operations(image, parameters):
         alpha_b = alpha_b if is_valid(alpha_b) else 0
         image = add_noise(image, alpha_a, alpha_b)
 
+    # Apply JPEG artifacts if valid
+    if is_valid(jpeg_quality):
+        image = apply_jpeg_artifacts(image, int(jpeg_quality))
+
     return image
 
 
@@ -143,6 +167,7 @@ def normalize_parameters(params):
         "sigma": (0, 3),
         "alpha_a": (0, 0.1),
         "alpha_b": (0, 0.1),
+        "jpeg_quality": (10, 100),
     }
 
     idx = 0
@@ -178,6 +203,7 @@ def denormalize_parameters(norm_params):
         "sigma": (0, 3),
         "alpha_a": (0, 0.1),
         "alpha_b": (0, 0.1),
+        "jpeg_quality": (10, 100),
     }
 
     idx = 0
@@ -212,6 +238,7 @@ def generate_random_parameters():
         "sigma": np.random.uniform(0, 3),  # Blurring
         "alpha_a": np.random.uniform(0, 0.1),  # Noise Poisson component
         "alpha_b": np.random.uniform(0, 0.1),  # Noise Gaussian component
+        "jpeg_quality": np.random.randint(10, 100),
     }
 
     # Randomly select a number of parameters to use
@@ -226,7 +253,7 @@ def generate_random_parameters():
 
     index = 0
     for key in param_order:
-        if key in selected_keys:
+        if key in selected_keys or key == "jpeg_quality":
             if isinstance(parameters[key], np.ndarray):
                 for i in range(len(parameters[key])):
                     param_list[index] = parameters[key][i]
